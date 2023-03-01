@@ -27,6 +27,7 @@ alias dpss='sudo docker ps -a --format "table {{.Names}}\t{{.State}}\t{{.Status}
 alias ddf='sudo docker system df'
 alias dclogs='sudo docker logs -tf --tail="50"'
 
+
 # CROWDSEC
 alias cscli='dcrun exec -t crowdsec cscli'
 alias csdecisions='cscli decisions list'

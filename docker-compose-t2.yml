@@ -90,7 +90,7 @@ services:
   traefik:
     <<: *common-keys-core # See EXTENSION FIELDS at the top
     container_name: traefik
-    image: traefik:3
+    image: traefik:2.9
     command: # CLI arguments
       - --global.checkNewVersion=true
       - --global.sendAnonymousUsage=true
@@ -242,19 +242,20 @@ services:
     container_name: crowdsec
     ports:
       - "$CROWDSEC_API_PORT:8080"
+      - "$ZEROTIER_IP_CLOUDSERVER:$CROWDSEC_PROMETHEUS_EXPORT:6060" # If you don't use ZeroTier remove use just $CROWDSEC_PROMETHEUS_EXPORT:6060
     environment:
-      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/iptables crowdsecurity/linux crowdsecurity/nginx crowdsecurity/sshd"
+      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/iptables crowdsecurity/linux fulljackz/proxmox"
       GID: "${GID-1000}"
-      CUSTOM_HOSTNAME: "cDoc"
+      CUSTOM_HOSTNAME: zDoc
       DISABLE_LOCAL_API: "true" # Only after successfully registering and validating remote agent below.
       # For the following, check local_api_credentials.yaml after cscli lapi register (secondary machine) and cscli machine validate (on primary machine)
       AGENT_USERNAME: $CROWDSEC_AGENT_USERNAME 
       AGENT_PASSWORD: $CROWDSEC_AGENT_PASSWORD 
       LOCAL_API_URL: $CROWDSEC_LOCAL_API_URL 
     volumes:
-      - $DOCKERDIR/logs/cloudserver:/logs:ro
+      - $DOCKERDIR/logs/cloudserver:/logs/cloudserver:ro
       - /var/log:/var/log:ro
-      - /media/cbox/log:/cbox/log:ro
+      - /media/zbox/log:/logs/zbox:ro
       - $DOCKERDIR/appdata/crowdsec/data:/var/lib/crowdsec/data
       - $DOCKERDIR/appdata/crowdsec/config:/etc/crowdsec
 
