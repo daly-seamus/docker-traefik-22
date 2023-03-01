@@ -1,0 +1,49 @@
+version: "3.9"
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+########################### SERVICES
+services:
+
+# ReStreamer Docker Application
+  restreamer:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+  # Use the official ReStreamer image https://docs.datarhei.com/restreamer/
+    image: datarhei/restreamer:latest
+  # Set to allow easy Docker DNS name resolution - not strictly necessary
+    container_name: stream
+  # Container will restart unless we specifically stop it
+    restart: always
+    networks:
+      - npm_proxy
+    environment:
+      - CORE_HOST_NAME=stream.$DOMAINNAME_CLOUD_SERVER
+      - CORE_API_AUTH_USERNAME=
+      - CORE_API_AUTH_PASSWORD=
+      - CORE_METRICS_ENABLE=true
+    volumes:
+      - $APPDIR/restreamer/config:/core/config
+      - $APPDIR/restreamer/data:/core/data
+    ports:
+      - 8080:8080
+      - 8181:8181
+      - 1935:1935
+      - 1936:1936
+      - 6000:6000/udp

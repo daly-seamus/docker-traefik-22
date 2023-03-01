@@ -1,0 +1,121 @@
+version: "3.9"
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+  nextcloud:
+    external: false
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+########################### SERVICES
+services:
+# Nextcloud Docker Application
+  nextcloud:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+  # Use the official nextcloud image (v21.0.0 at time of writing this)
+    image: nextcloud:production
+  # Set to allow easy Docker DNS name resolution - not strictly necessary
+    container_name: nextcloud
+  # Container will restart unless we specifically stop it
+    restart: always
+    networks:
+      - npm_proxy
+      - nextcloud
+    depends_on:
+      - nc-redis
+      - nc-db
+      - nc-cron
+    environment:
+      - TZ=$TZ
+      - REDIS_HOST=nc-redis
+      - NEXTCLOUD-TRUSTED_DOMAINS=cloud.$DOMAINNAME_CLOUD_SERVER
+      - TRUSTED_PROXIES=192.168.90.254,192.168.2.125
+      - OVERWRITEPROTOCOL=https
+      - MYSQL_PASSWORD_FILE=/secrets/authelia_storage_encryption_key
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=n3x7c10ud
+      - MYSQL_HOST=nc-db:3306
+    volumes:
+      - $APPDIR/nextcloud/data:/var/www/html/data
+      - $APPDIR/nextcloud/root:/var/www/html
+      - $DOCKERDIR/logs/nextcloud:/var/log/apache2
+      - $SECRETSDIR:/secrets
+
+  # Nextcloud Database - Using MariaDB, but can also use MySQL or PostgreSQL
+  nc-db:
+  # MariaDB 10.5 again not using latest to prevent future breakage
+    image: mariadb:latest
+  # Set to allow easy Docker DNS name resolution - not strictly necessary
+    container_name: nc-db
+  # Container will restart unless we specifically stop it
+    restart: always
+  # Recommended database settings as listed in:
+  # https://docs.nextcloud.com/server/21/admin_manual/configuration_database/linux_database_configuration.html
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --skip-innodb-read-only-compressed --log-bin=msqyld-bin
+    # command: --transaction-isolation=READ-COMMITTED --log-bin=msqyld-bin --binlog-format=ROW
+  # Defines how we want our container to connect outside
+    networks:
+    # ONLY using an internal network and not exposing to the internet
+      - nextcloud
+  # Persistent volumes with bind mounts to easily move/backup data
+    volumes:
+    # I like to use the /opt folder to hold my Docker bind mounted volumes
+      - $APPDIR/nextcloud/nc-db:/var/lib/mysql
+      - $SECRETSDIR:/secrets
+  # Environment (internal to the container) variables to simplify setup (notice the secrets used below)
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      MYSQL_ROOT_PASSWORD: 24a5ba23a7996448ba770da93d2503ed5
+#      MYSQL_ROOT_USER: n3x7c10udr0ot
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: n3x7c10ud
+      MYSQL_PASSWORD_FILE: /secrets/authelia_storage_encryption_key
+
+# Nextcloud (in memory) Redis Cache - speed up lookup transactions
+# Speeds up Nextcloud by reducing the time spent "looking" for things
+  nc-redis:
+  # Official REDIS 6.2 image based upon alpine Linux (to keep it lightweight)
+    image: redis:alpine
+  # Set to allow easy Docker DNS name resolution - not strictly necessary
+    container_name: nc-redis
+  # Container will restart unless we specifically stop it
+    restart: always
+  # Defines how we want our container to connect outside
+    networks:
+  # ONLY using an internal network and not exposing to the internet
+      - nextcloud
+  # Persistent volumes with bind mounts to easily move/backup data
+    volumes:
+  # I like to use the /opt folder to hold my Docker bind mounted volumes
+      - $APPDIR/nextcloud/nc-redis:/data
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+
+  nc-cron:
+    image: nextcloud:apache
+    container_name: nc-cron
+    restart: always
+    networks:
+      - nextcloud
+    volumes:
+      - $APPDIR/nextcloud/root:/var/www/html
+    entrypoint: /cron.sh
+    depends_on:
+      - nc-db
+      - nc-redis

@@ -8,11 +8,16 @@
 !.bash_aliases.example
 !.env.example
 
-!docker-compose-t2.yml
-!docker-compose-t2-obsolete.yml
-!docker-compose-t2-synology.yml
-!docker-compose-t2-web.yml
-!docker-compose.yml
+docker-compose-t2.yml
+!base.yml
+!wordpress.yml
+!stream.yml
+1_authelia.yml
+!moodle.yml
+!nextcloud.yml
+!background.yml
+!utilities.yml
+!security.yml
 
 !.github
 .github/*

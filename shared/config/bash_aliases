@@ -5,25 +5,27 @@
 # use cp ~/docker/shared/config/bash_aliases ~/.bash_aliases and use it as a starter
 # use cp ~/docker/shared/config/bash_aliases.env.example ~/.bash_aliases.env and use it as a starter
 source ~/.bash_aliases.env
-source ~/docker/scripts
+export PATH="$PATH:~/docker/scripts"
+export YMLDIR="$HOME/docker/ymlfiles"
 
 alias yml='cd ~/docker/ymlfiles'
 alias app='cd ~/docker/appdata'
+alias secrets='cd ~/docker/secrets'
 
 # DOCKER COMMON - All docker commands start with "d"
 alias dstop='sudo docker stop $(docker ps -a -q)'
 alias dstopall='sudo docker stop $(sudo docker ps -aq)'
 alias drm='sudo docker rm $(docker ps -a -q)'
-alias dprunevol='sudo docker volume prune'
-alias dprunesys='sudo docker system prune -a'
+alias dvolprune='sudo docker volume prune'
+alias dsysprune='sudo docker system prune -a'
 alias ddelimages='sudo docker rmi $(docker images -q)'
 alias derase='dstopcont ; drmcont ; ddelimages ; dvolprune ; dsysprune'
-alias dprune='ddelimages ; dprunevol ; dprunesys'
+alias dprune='ddelimages ; dvolprune ; dsysprune'
 alias dexec='sudo docker exec -ti'
 alias dps='sudo docker ps -a'
 alias dpss='sudo docker ps -a --format "table {{.Names}}\t{{.State}}\t{{.Status}}\t{{.Image}}" | (sed -u 1q; sort)'
 alias ddf='sudo docker system df'
-alias dclogs='sudo docker logs -tf --tail="50" '
+alias dclogs='sudo docker logs -tf --tail="50"'
 
 # CROWDSEC
 alias cscli='dcrun exec -t crowdsec cscli'
@@ -67,7 +69,6 @@ alias cpy='sudo rsync -azh --info=progress2' # copy files with rsync
 alias mve='mv --verbose' # native move
 
 # NAVIGATION
-alias cd..='cd ..'
 alias ..='cd ..'
 alias ...='cd ../..'
 alias .3='cd ../../..'

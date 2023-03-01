@@ -1,0 +1,81 @@
+version: "3.9"
+
+######### IMPORTANT #############
+# This is my main docker-compose file with most of the apps. I run docker on other systems with smaller stacks (web and synology).
+# You can copy-paste services from one docker-compose file in this repo to another to add other apps.
+
+# Edit the .env file with the following variables
+# DOMAINNAME_CLOUD_SERVER
+
+# Create the following secret files
+# cd ~/docker/secrets
+# touch cf_token
+
+##### SECRETS TO SET #####
+# cf_token Zone/Zone/Read & Zone/DNS/Edit
+
+########################### NETWORKS
+# docker network create --subnet 192.168.90.0/24 npm_proxy
+
+networks:
+  npm_proxy:
+    external: true
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+########################### SERVICES
+services:
+
+  moodle-db:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: docker.io/bitnami/mariadb:10.6
+    container_name: moodle_db
+    environment:
+      - MARIADB_USER=elearn2022
+      - MARIADB_DATABASE=moodle_gycd2023
+      - MARIADB_ROOT_PASSWORD=/secrets/mysql_root_password
+      - MARIADB_PASSWORD=/secrets/mysql_password
+      - MARIADB_CHARACTER_SET=utf8mb4
+      - MARIADB_COLLATE=utf8mb4_unicode_ci
+    volumes:
+      # mkdir ~/docker/appdata/moodle && mkdir ~/docker/appdata/moodle/db
+      # sudo chown 1001 ~/docker/appdata/moodle/db
+      - $APPDIR/moodle/db:/bitnami/mariadb
+      - $SECRETSDIR:/secrets
+
+  moodle:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: docker.io/bitnami/moodle:4
+    container_name: moodle
+    # ports:
+    #   - '80:8080'
+    #   - '443:8443'
+    environment:
+      - MOODLE_DATABASE_HOST=moodle_db
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_USER=elearn2022
+      - MOODLE_DATABASE_NAME=moodle_gycd2023
+      - MOODLE_DATABASE_PASSWORD=/secrets/mysql_password
+      - MOODLE_SMTP_HOST=smtp.sendgrid.net
+      - MOODLE_SMTP_PORT=465
+      - MOODLE_SMTP_USER=apikey
+      - MOODLE_SMTP_PASSWORD_FILE=/secrets/authelia_notifier_smtp_password
+      - MOODLE_SMTP_PROTOCOL=ssl
+      - MOODLE_HOST=elearning.$DOMAINNAME_CLOUD_SERVER
+      - MOODLE_REVERSEPROXY=true
+      - MOODLE_SSLPROXY=true
+    volumes:
+      - $APPDIR/moodle/moodle:/bitnami/moodle
+      - $APPDIR/moodle/moodledata:/bitnami/moodledata'
+    depends_on:
+      - moodle_db
