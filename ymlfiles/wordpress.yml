@@ -1,0 +1,76 @@
+version: "3.9"
+
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+
+# Edit the .env file with the following variables 
+
+# WORDPRESS_ROOT_DB_PASSWORD
+# WORDPRESS_DB_PASSWORD
+
+# DOMAINNAME
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+  wordpress:
+    external: false
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+services:
+
+  wordpress:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: wordpress:latest
+    container_name: wordpress
+    networks:
+      - npm_proxy
+      - wordpress
+    ports:
+      - 86:80 # Use 80 for NPM
+    restart: always
+    volumes:
+      - $APPDIR/wordpress/data:/var/www/html/wp-content
+      - $APPDIR/wordpress/config:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: wp-db:3306
+      WORDPRESS_DB_NAME: w0rdp43ss
+      WORDPRESS_DB_USER: W0rdpr35sU53R
+      WORDPRESS_DB_PASSWORD: $WORDPRESS_DB_PASSWORD
+    depends_on:
+      - wp-db
+    labels:
+      - homepage.group: Apps
+      - homepage.name: Wordpress
+      - homepage.icon: wordpress.png
+      - homepage.href: https://$DOMAINNAME/
+
+  wp-db:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: mariadb:10
+    container_name: wp-db
+    volumes:
+      - $APPDIR/wordpress/db:/var/lib/mysql
+    networks:
+      - wordpress
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: $WORDPRESS_ROOT_DB_PASSWORD
+      MYSQL_DATABASE: w0rdp43ss
+      MYSQL_USER: W0rdpr35sU53R
+      MYSQL_PASSWORD: $WORDPRESS_DB_PASSWORD

@@ -1,0 +1,124 @@
+version: "3.9"
+
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+
+# Edit the .env file with the following variables 
+
+# NEXTCLOUD_ROOT_DB_PASSWORD
+# NEXTCLOUD_DB_PASSWORD
+
+# DOMAINNAME
+
+# SENDGRID_API_KEY NOTE: If using please uncomment the lines #63 - #68 below
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+  nextcloud:
+    external: false
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+########################### SERVICES
+services:
+# Nextcloud Docker Application
+  nextcloud:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: nextcloud:production
+    container_name: nextcloud
+    networks:
+      - npm_proxy
+      - nextcloud
+    expose:
+      - 80 # Use 80 for NPM. 
+    depends_on:
+      - nc-redis
+      - nc-db
+      - nc-cron
+    environment:
+      TZ: $TZ
+      PUID: 33
+      PGID: 999
+      REDIS_HOST: "nc-redis"
+      NEXTCLOUD_TRUSTED_DOMAINS: cloud.$DOMAINNAME
+      APACHE_DISABLE_REWRITE_IP: 1
+      TRUSTED_PROXIES: $SERVER_IP
+      # OVERWRITEPROTOCOL: "https"
+      MYSQL_HOST: "nc-db:3306"
+      MYSQL_USER: "N3xtC10udU53r"
+      MYSQL_DATABASE: "n3xtc1oud"
+      MYSQL_PASSWORD: $NEXTCLOUD_DB_PASSWORD
+      # SMTP_HOST: "smtp.sendgrid.net"
+      # SMTP_SECURE: "ssl"
+      # SMTP_PORT: 465
+      # SMTP_AUTHTYPE: "login"
+      # SMTP_NAME: "apikey"
+      # SMTP_PASSWORD: $SENDGRID_API_KEY
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/nextcloud/root:/var/www/html
+      - $APPDIR/nextcloud/data:/var/www/html/data
+      - $APPDIR/nextcloud/config:/var/www/html/config
+      - $DOCKERDIR/logs/nextcloud:/var/log/apache2
+    labels:
+      - homepage.group: Apps
+      - homepage.name: Nextcloud
+      - homepage.icon: nextcloud.png
+      - homepage.href: https://cloud.$DOMAINNAME/
+
+  nc-db:
+    image: mariadb:10
+    container_name: nc-db
+    restart: always
+  # https://docs.nextcloud.com/server/latest/admin_manual/configuration_database/linux_database_configuration.html#
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --skip-innodb-read-only-compressed --log-bin=msqyld-bin
+    # command: --transaction-isolation=READ-COMMITTED --log-bin=msqyld-bin --binlog-format=ROW
+    networks:
+      - nextcloud
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/nextcloud/nc-db:/var/lib/mysql
+    environment:
+      MARIADB_ROOT_PASSWORD : $NEXTCLOUD_ROOT_DB_PASSWORD
+      MARIADB_DATABASE: "n3xtc1oud"
+      MARIADB_USER: "N3xtC10udU53r"
+      MARIADB_PASSWORD: $NEXTCLOUD_DB_PASSWORD
+
+# Nextcloud (in memory) Redis Cache - speed up lookup transactions
+  nc-redis:
+    image: redis:alpine
+    container_name: nc-redis
+    restart: always
+    networks:
+      - nextcloud
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/nextcloud/nc-redis:/data
+
+  nc-cron:
+    image: nextcloud:apache
+    container_name: nc-cron
+    restart: always
+    networks:
+      - nextcloud
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/nextcloud/root:/var/www/html
+    entrypoint: /cron.sh
+    environment:
+      PUID: 33
+      PGID: 999
+    depends_on:
+      - nc-db
+      - nc-redis

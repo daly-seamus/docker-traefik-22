@@ -6,11 +6,9 @@
 # use cp ~/docker/shared/config/bash_aliases.env.example ~/.bash_aliases.env and use it as a starter
 source ~/.bash_aliases.env
 export PATH="$PATH:~/docker/scripts"
-export YMLDIR="$HOME/docker/ymlfiles"
 
 alias yml='cd ~/docker/ymlfiles'
 alias app='cd ~/docker/appdata'
-alias secrets='cd ~/docker/secrets'
 
 # DOCKER COMMON - All docker commands start with "d"
 alias dstop='sudo docker stop $(docker ps -a -q)'
@@ -25,11 +23,9 @@ alias dexec='sudo docker exec -ti'
 alias dps='sudo docker ps -a'
 alias dpss='sudo docker ps -a --format "table {{.Names}}\t{{.State}}\t{{.Status}}\t{{.Image}}" | (sed -u 1q; sort)'
 alias ddf='sudo docker system df'
-alias dclogs='sudo docker logs -tf --tail="50"'
-
+alias dclogs='sudo docker logs -tf --tail="50" '
 
 # CROWDSEC
-alias cscli='dcrun exec -t crowdsec cscli'
 alias csdecisions='cscli decisions list'
 alias csalerts='cscli alerts list'
 alias csinspect='cscli alerts inspect -d'
@@ -45,10 +41,10 @@ alias csfbstatus='sudo systemctl status crowdsec-firewall-bouncer.service'
 alias csfbstart='sudo systemctl start crowdsec-firewall-bouncer.service'
 alias csfbstop='sudo systemctl stop crowdsec-firewall-bouncer.service'
 alias csfbrestart='sudo systemctl restart crowdsec-firewall-bouncer.service'
-alias tailkern='sudo tail -f /var/log/kern.log'
-alias tailauth='sudo tail -f /var/log/auth.log'
+#alias tailkern='sudo tail -f /var/log/kern.log'
+#alias tailauth='sudo tail -f /var/log/auth.log'
 alias tailcsfb='sudo tail -f /var/log/crowdsec-firewall-bouncer.log'
-alias csbrestart='dcrec traefik-bouncer ; csfbrestart'
+#alias csbrestart='dcrec traefik-bouncer ; csfbrestart'
 
 # RCLONE
 alias rcdlogs='tail -f /home/$BA_USERNAME/docker/logs/rclone/rclone-drive.log'

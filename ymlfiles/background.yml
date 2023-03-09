@@ -1,0 +1,162 @@
+version: "3.9"
+
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+
+# Edit the .env file with the following variables
+# TZ
+# PUID
+# PGID
+# DOMAINNAME
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+x-environment: &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+########################### SERVICES
+services:
+  # Portainer - WebUI for Containers
+  portainer:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    command: -H unix:///var/run/docker.sock # Use Docker Socket Proxy and comment this line out, for improved security.
+    # command: -H tcp://socket-proxy:2375 # Use this instead, if you have Socket Proxy enabled.
+    networks:
+      - npm_proxy
+    expose:
+      - 9000 # Use 9000 for NPM
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy and comment this line out, for improved security.
+      - $APPDIR/portainer:/data # Change to local directory if you want to save/transfer config locally.
+    environment:
+      - TZ=$TZ
+    labels:
+      - homepage.group: Core
+      - homepage.name: Portainer
+      - homepage.icon: portainer.png
+      - homepage.href: https://dock.$DOMAINNAME/
+      - homepage.widget.type: portainer
+      - homepage.widget.url: https://dock.$DOMAINNAME/
+      - homepage.widget.env: 1
+      - homepage.widget.key:  # In order to generate an API key, please follow the steps outlined here https://docs.portainer.io/api/access.
+
+  # File Browser - Explorer
+  filebrowser:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: filebrowser/filebrowser:s6
+    container_name: filebrowser
+    expose:
+      - 80 # Use 80 for NPM. 80 and 81 are used by Nginx Proxy Manager
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/filebrowser:/config
+      - $DOCKERDIR:/srv
+    environment:
+      <<: *default-tz-puid-pgid
+    labels:
+      - homepage.group: Utils
+      - homepage.name: FileBrowser
+      - homepage.icon: file.png
+      - homepage.href: https://files.$DOMAINNAME/
+
+  # Homepage - Application Dashboard
+  homepage:
+    image: ghcr.io/benphelps/homepage:latest
+    container_name: homepage
+    expose:
+      - 3000
+    volumes:
+      - $APPDIR/home:/app/config # Make sure your local config directory exists
+      - /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations, see alternative methods
+    environment:
+      <<: *default-tz-puid-pgid
+  
+  # Dozzle - Real-time Docker Log Viewer
+  dozzle:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    networks:
+      - npm_proxy
+    expose:
+      - 8080 # Use 8080 for NPM
+    environment:
+      DOZZLE_LEVEL: "info"
+      DOZZLE_TAILSIZE: 300
+      DOZZLE_FILTER="status: "running"
+      # DOZZLE_FILTER: "label=log_me" # limits logs displayed to containers with this label.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy and comment this line for improved security.
+    labels:
+      - homepage.group: Utils
+      - homepage.name: Dozzle
+      - homepage.icon: dozzle.png
+      - homepage.href: https://dclogs.$DOMAINNAME/
+
+  syncthing:
+    <<: *common-keys-core
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    environment:
+      <<: *default-tz-puid-pgid
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/syncthing/config:/config
+      - $DOCKERDIR:/data1
+    ports:
+      - 8384:8384 # Use 8384 for NPM
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    restart: unless-stopped
+    labels:
+      - homepage.group: Core
+      - homepage.name: Syncthing
+      - homepage.icon: syncthing.png
+      - homepage.href: https://sync.$DOMAINNAME/
+
+    # Glances - System Information
+  glances:
+    <<: *common-keys-apps # See EXTENSION FIELDS at the top
+    image: nicolargo/glances:latest
+    container_name: glances
+    # privileged: true # Only for VM
+    # network_mode: host
+    networks:
+      - npm_proxy
+    expose:
+      - 61208 # Use 61208 for NPM
+    pid: host
+    volumes:
+      - $USERDIR:/data/home:ro
+      - /media/data:/data/data:ro
+      # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
+    environment:
+      # GLANCES_OPT: "-C /glances/conf/glances.conf --quiet --export influxdb"
+      # GLANCES_OPT: "--export influxdb"
+      GLANCES_OPT: "-w"
+    labels:
+      - homepage.group: Utils
+      - homepage.name: Glances
+      - homepage.icon: glances.png
+      - homepage.href: https://system.$DOMAINNAME/
