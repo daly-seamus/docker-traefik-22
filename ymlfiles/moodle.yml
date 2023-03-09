@@ -1,0 +1,90 @@
+version: "3.9"
+
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+
+# Edit the .env file with the following variables 
+
+# MOODLE_ROOT_DB_PASSWORD
+# MOODLE_DB_PASSWORD
+
+# DOMAINNAME
+
+# SENDGRID_API_KEY NOTE: If using please uncomment the lines #42 - #46 below
+
+########################### NETWORKS
+# There is no need to create any networks outside this docker-compose file.
+
+networks:
+  npm_proxy:
+    external: true
+  moodle:
+    external: false
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+########################### SERVICES
+services:
+
+  moodle:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: docker.io/bitnami/moodle:4
+    container_name: moodle
+    networks:
+      - npm_proxy
+      - moodle
+    expose:
+      - 8080 # Use 8080 for NPM.
+    #  - 8443
+    environment:
+      MOODLE_DATABASE_HOST: "moodle-db"
+      MOODLE_DATABASE_PORT_NUMBER: 3306
+      MOODLE_DATABASE_USER: "M00d1lu53r"
+      MOODLE_DATABASE_NAME: "m00d13DB"
+      MOODLE_DATABASE_PASSWORD: $MOODLE_DB_PASSWORD # openssl rand -hex 64
+      # MOODLE_SMTP_HOST: "smtp.sendgrid.net"
+      # MOODLE_SMTP_PORT: 465
+      # MOODLE_SMTP_USER: "apikey"
+      # MOODLE_SMTP_PASSWORD: $SENDGRID_API_KEY
+      # MOODLE_SMTP_PROTOCOL: "ssl"
+      MOODLE_HOST: elearning.$DOMAINNAME
+      PHP_POST_MAX_SIZE: "150M"
+      PHP_UPLOAD_MAX_FILESIZE: "150M"
+      PHP_MAX_EXECUTION_TIME: 600
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/moodle/moodle:/bitnami/moodle
+      - $APPDIR/moodle/moodledata:/bitnami/moodledata
+    depends_on:
+      - moodle-db
+    labels:
+      - homepage.group: Apps
+      - homepage.name: Moodle
+      - homepage.icon: moodle.png
+      - homepage.href: https://elearning.$DOMAINNAME/
+
+  moodle-db:
+    image: mariadb:10
+    container_name: moodle-db
+    networks:
+      - moodle
+    environment:
+      MARIADB_USER: "M00d1lu53r"
+      MARIADB_DATABASE: "m00d13DB"
+      MARIADB_ROOT_PASSWORD: $MOODLE_ROOT_DB_PASSWORD
+      MARIADB_PASSWORD: $MOODLE_DB_PASSWORD # openssl rand -hex 64
+      MARIADB_CHARACTER_SET: "utf8mb4"
+      MARIADB_COLLATE: "utf8mb4_unicode_ci"
+    volumes: # Persistent volumes with bind mounts to easily move/backup data
+      - $APPDIR/moodle/db-data:/bitnami/mariadb/data
+      - $SECRETSDIR:/secrets

@@ -1,8 +1,11 @@
 version: "3.9"
 
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+  
 # Edit the .env file with the following variables
 # TZ
-# APPDIR
 
 ########################### NETWORKS
 # There is no need to create any networks outside this docker-compose file.
@@ -60,3 +63,21 @@ services:
       WATCHTOWER_SCHEDULE: "0 30 12 * * *" # Everyday at 12:30
       # DOCKER_HOST: tcp://socket-proxy:2375 # Use this if you have Socket Proxy enabled.
       DOCKER_API_VERSION: "1.40"
+    labels:
+      - homepage.group: Core
+      - homepage.name: Watchtower
+      - homepage.icon: watchtower.png
+      - homepage.href: https://proxy.$DOMAINNAME/
+      - homepage.widget.type: watchtower
+      - homepage.widget.url: http://$MYIP:8080/
+      - homepage.widget.key: $WATCHTOWER_APIKEY
+
+  # WhoAmI - For Testing and Troubleshooting
+  whoami:
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
+    image: traefik/whoami
+    container_name: whoami
+    networks:
+      - npm_proxy
+    expose:
+      - 80

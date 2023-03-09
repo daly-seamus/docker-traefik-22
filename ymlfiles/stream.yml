@@ -1,5 +1,9 @@
 version: "3.9"
 
+# Hardcoded link to .env file outside yml directory
+env_file:
+  - /home/$USER/docker/.env
+  
 ########################### NETWORKS
 # There is no need to create any networks outside this docker-compose file.
 
@@ -34,16 +38,21 @@ services:
     networks:
       - npm_proxy
     environment:
-      - CORE_HOST_NAME=stream.$DOMAINNAME_CLOUD_SERVER
-      - CORE_API_AUTH_USERNAME=
-      - CORE_API_AUTH_PASSWORD=
+      - CORE_HOST_NAME=stream.$DOMAINNAME
+      - CORE_API_AUTH_USERNAME=$STREAM_USER
+      - CORE_API_AUTH_PASSWORD=$STREAM_PASSWORD
       - CORE_METRICS_ENABLE=true
     volumes:
       - $APPDIR/restreamer/config:/core/config
       - $APPDIR/restreamer/data:/core/data
     ports:
-      - 8080:8080
+      - 8085:8080 # Use 8080 for NPM.
       - 8181:8181
-      - 1935:1935
-      - 1936:1936
+      - 1935:1935 #RTMP
+      - 1936:1936 # RTMPS
       - 6000:6000/udp
+    labels:
+      - homepage.group: Apps
+      - homepage.name: ReStreamer
+      - homepage.icon: openwrt.png
+      - homepage.href: https://stream.$DOMAINNAME/

@@ -1,0 +1,11 @@
+#!/bin/sh
+# $HOME/docker/scripts/dup
+
+CONTAINERS="$@"
+for c in $CONTAINERS
+do
+  echo ""
+  echo "...$c up..."
+  echo ""
+  docker compose -f "/home/$USER/docker/ymlfiles/$c.yml" -p $c up -d
+  done
